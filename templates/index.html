@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>LinkedIn Post Generator</title>
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+  <div class="container">
+    <h1>Personalized LinkedIn Post Generator</h1>
+
+    <form id="postForm" enctype="multipart/form-data">
+
+      <!-- 👤 About You -->
+      <section>
+        <h2>👤 About You</h2>
+
+        <label>What’s your current role? <span class="req">*</span></label>
+        <select name="role" required>
+          <option value="">-- Select --</option>
+          <option>Student</option>
+          <option>Intern</option>
+          <option>Working Professional</option>
+          <option>Other</option>
+        </select>
+
+        <input type="text" name="role_other" placeholder="If Other, please specify" />
+
+        <label>Preferred tone <span class="req">*</span></label>
+        <select name="tone" required>
+          <option value="">-- Select --</option>
+          <option>Professional & Informative</option>
+          <option>Enthusiastic & Excited</option>
+          <option>Grateful & Appreciative</option>
+          <option>Humble & Reflective</option>
+          <option>Inspirational & Motivational</option>
+        </select>
+      </section>
+
+      <!-- 📝 Post Purpose -->
+      <section>
+        <h2>📝 Post Purpose</h2>
+
+        <label>What kind of update are you sharing? <span class="req">*</span></label>
+        <select name="purpose" required>
+          <option value="">-- Select --</option>
+          <option>Project progress or achievement</option>
+          <option>Event or session experience</option>
+          <option>Tech news or industry commentary</option>
+          <option>Collaboration or partnership announcement</option>
+          <option>Milestone or personal achievement</option>
+          <option>Gratitude or acknowledgment post</option>
+          <option>Other</option>
+        </select>
+
+        <label>Main highlight or takeaway <span class="req">*</span></label>
+        <textarea id="highlightField" name="highlight" required></textarea>
+        <small id="highlightError" style="color:#e11d48; display:none;">
+          Please describe your achievement properly (minimum 15 characters).
+        </small>
+
+        <label>Challenges, insights, or learnings?</label>
+        <textarea name="insights"></textarea>
+      </section>
+
+      <!-- 🙌 Gratitude & People -->
+      <section>
+        <h2>🙌 Gratitude & People</h2>
+
+        <label>People you'd like to thank or mention</label>
+        <textarea name="gratitude"></textarea>
+
+        <label>Tag individuals or organizations</label>
+        <input type="text" name="tags" placeholder="@Name, @Org, etc." />
+      </section>
+
+      <!-- 🔗 Resources -->
+      <section>
+        <h2>🔗 Resources</h2>
+
+        <label>Links or media to include</label>
+        <input type="text" name="resources" placeholder="https://github.com/yourrepo" />
+
+        <label>Timeline or date</label>
+        <input type="text" name="date" placeholder="e.g., June 2025" />
+      </section>
+
+      <!-- 💡 Reflections -->
+      <section>
+        <h2>💡 Reflections</h2>
+
+        <label>Personal insights or advice</label>
+        <textarea name="reflection"></textarea>
+
+        <label>Question or call-to-action</label>
+        <textarea name="cta"></textarea>
+      </section>
+
+      <!-- 📌 Extras -->
+      <section>
+        <h2>📌 Extras</h2>
+
+        <label>Preferred hashtags</label>
+        <input type="text" name="hashtags" placeholder="#AI #CareerJourney" />
+
+        <label>Other notes or instructions</label>
+        <textarea name="extras"></textarea>
+      </section>
+
+      <!-- 🖼️ Image Upload -->
+      <section>
+        <h2>🖼️ Attach Image (Optional)</h2>
+        <label>Upload a certificate, project screenshot, or photo</label>
+        <input type="file" name="image" id="imageInput" accept="image/*">
+      </section>
+
+      <button id="generateBtn" type="submit">Generate LinkedIn Post</button>
+    </form>
+
+    <!-- Result -->
+    <div id="resultBox" style="display:none; margin-top:30px;">
+      <h2>Your LinkedIn Post:</h2>
+
+      <div class="post-card">
+        <div class="copy-header">
+          <span id="copyStatus" class="copy-status">Copied ✓</span>
+          <div>
+            <button id="regenBtn" class="regen-btn" type="button">Regenerate</button>
+            <button id="copyBtn" class="copy-icon" title="Copy post">⧉ Copy</button>
+          </div>
+        </div>
+
+        <div id="generatedPost" class="post-preview"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+
+const form = document.getElementById('postForm');
+const highlightField = document.getElementById('highlightField');
+const highlightError = document.getElementById('highlightError');
+const generateBtn = document.getElementById('generateBtn');
+
+let lastFormData = null;
+
+/* ===== GENERATE ===== */
+
+form.addEventListener('submit', async function (e) {
+  e.preventDefault();
+
+  if (highlightField.value.trim().length < 15) {
+    highlightError.style.display = "block";
+    highlightField.focus();
+    return;
+  } else {
+    highlightError.style.display = "none";
+  }
+
+  generateBtn.disabled = true;
+  generateBtn.innerText = "Generating...";
+
+  lastFormData = new FormData(form);
+
+  await generatePost(lastFormData);
+
+  generateBtn.disabled = false;
+  generateBtn.innerText = "Generate LinkedIn Post";
+});
+
+async function generatePost(formData){
+
+  const response = await fetch("/generate", {
+    method: "POST",
+    body: formData
+  });
+
+  const resultBox = document.getElementById('resultBox');
+  const output = document.getElementById('generatedPost');
+
+  if (response.ok) {
+    const data = await response.json();
+    let post = data.linkedin_post || "";
+
+    post = post
+      .replace(/\n\n/g, "<br><br>")
+      .replace(/\n/g, "<br>")
+      .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="link">$1</a>')
+      .replace(/@([A-Za-z0-9_]+)/g, '<span class="mention">@$1</span>')
+      .replace(/#([A-Za-z0-9_]+)/g, '<span class="hashtag">#$1</span>');
+
+    output.innerHTML = post;
+
+    if (data.image_url) {
+      output.innerHTML += `<br><br>
+      <img src="${data.image_url}" style="max-width:420px;border-radius:12px;margin-top:15px;">`;
+    }
+
+    resultBox.style.display = 'block';
+  }
+}
+
+/* ===== REGENERATE ===== */
+
+document.getElementById("regenBtn").addEventListener("click", async () => {
+  if(!lastFormData) return;
+  await generatePost(lastFormData);
+});
+
+/* ===== COPY ===== */
+
+document.getElementById('copyBtn').addEventListener('click', function () {
+
+  const postElement = document.getElementById('generatedPost');
+  const clone = postElement.cloneNode(true);
+  clone.querySelectorAll("img").forEach(img => img.remove());
+
+  let html = clone.innerHTML;
+
+  html = html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<[^>]+>/g, "");
+
+  const text = html.trim();
+
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copyBtn');
+    const status = document.getElementById('copyStatus');
+
+    btn.classList.add('copied');
+    status.style.display = "inline";
+
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      status.style.display = "none";
+    }, 1800);
+  });
+});
+
+</script>
+</body>
+</html>
